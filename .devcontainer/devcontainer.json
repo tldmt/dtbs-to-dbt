@@ -1,0 +1,16 @@
+{
+	"name": "databricks_api",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"formulahendry.code-runner",
+				"ms-python.python",
+				"ms-python.autopep8"
+			]
+		}
+	},
+	"runArgs": ["--env-file",".devcontainer/.env"]
+}
