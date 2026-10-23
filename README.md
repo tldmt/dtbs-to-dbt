@@ -1,103 +1,105 @@
 # databricks_api
+[🇧🇷 BR README](./README.pt.md)
 
-Lê os metadados do Unity Catalog de um workspace Databricks (catalogs, schemas, tabelas e colunas) e grava o resultado em JSON e/ou em arquivos de sources do dbt.
+Reads Unity Catalog metadata from a Databricks workspace (catalogs, schemas, tables and columns) and writes it out as JSON and/or dbt source files.
 
-Os sources do dbt são gerados com um arquivo por schema, incluindo as colunas com tipo e comentário. Colunas `NOT NULL` recebem o teste `not_null`.
+dbt sources are written as one file per schema, including each column's type and comment. `NOT NULL` columns get a `not_null` test.
 
-## Dependências
+## Dependencies
+
 - `databricks-sdk`
 - `pyyaml`
 
-Para instalar as dependências:
+To install:
 
 ```bash
 uv sync
 ```
 
-O devcontainer em `.devcontainer/` já vem com `Python` e `uv` instalados.
+The devcontainer in `.devcontainer/` already ships with `Python` and `uv`.
 
-## Autenticação
+## Authentication
 
-O script lê duas variáveis de ambiente:
+The script reads two environment variables:
 
-| Variável           | Exemplo                                   |
-|--------------------|-------------------------------------------|
+| Variable           | Example                                         |
+|--------------------|-------------------------------------------------|
 | `DATABRICKS_HOST`  | `https://abc-1234567890-0123.cloud.databricks.com` |
-| `DATABRICKS_TOKEN` | personal access token do usuário ou service principal |
+| `DATABRICKS_TOKEN` | personal access token for a user or service principal |
 
-No devcontainer, elas são carregadas de `.devcontainer/.env`, que não vai para o git. Fora dele, exporte as variáveis no shell antes de rodar.
+In the devcontainer they are loaded from `.devcontainer/.env`, which is not committed. Outside of it, export them in your shell before running.
 
-O token precisa de permissão de leitura (`USE CATALOG`, `USE SCHEMA`, `SELECT` ou `BROWSE`) nos objetos que você quer coletar. Quando falta permissão em um catalog ou schema, o erro é registrado no campo `error` do JSON e a coleta segue para o próximo.
+The token needs read access (`USE CATALOG`, `USE SCHEMA`, `SELECT` or `BROWSE`) on the objects you want to collect. When access to a catalog or schema is denied, the error is stored in the `error` field of the JSON and collection moves on to the next one.
 
 ## Flags
 
-| Flag | Descrição |
-|------|-----------|
-| `--json` | Grava tudo o que foi coletado em `output/json/catalogs.json`. |
-| `--sources` | Grava os sources do dbt em `output/yml/<catalog>_<schema>.yml`. |
-| `--include palavra [palavra ...]` | Coleta só catalogs, schemas e tabelas cujo nome tenha alguma dessas palavras. Se um catalog ou schema der match, tudo o que estiver dentro dele entra. |
-| `--exclude [palavra ...]` | Ignora catalogs, schemas e tabelas cujo nome tenha alguma dessas palavras. Padrão: `system information_schema __databricks_internal`. |
+| Flag | Description |
+|------|-------------|
+| `--json` | Writes everything collected to `output/json/catalogs.json`. |
+| `--sources` | Writes dbt sources to `output/yml/<catalog>_<schema>.yml`. |
+| `--include word [word ...]` | Collects only catalogs, schemas and tables whose name contains one of these words. If a catalog or schema matches, everything inside it is included. |
+| `--exclude [word ...]` | Skips catalogs, schemas and tables whose name contains one of these words. Default: `system information_schema __databricks_internal`. |
 
-Sem `--json` e sem `--sources`, o script coleta os metadados mas não grava nada.
+Without `--json` or `--sources`, the script collects the metadata but writes nothing.
 
-### Como funciona o match
+### How matching works
 
-A comparação ignora maiúsculas e minúsculas. O nome é quebrado em `_`, `-`, `.` e espaço, e a palavra precisa ser igual ao nome inteiro ou a um desses pedaços:
+Matching is case-insensitive. The name is split on `_`, `-`, `.` and spaces, and the word must equal either the whole name or one of those parts:
 
-| Palavra | Dá match em | Não dá match em |
-|---------|-------------|-----------------|
+| Word | Matches | Doesn't match |
+|------|---------|---------------|
 | `dev` | `dev`, `sales_dev`, `DEV_raw` | `device` |
 | `sap` | `sap`, `sap_vbak`, `bronze.sap` | `sapiens` |
 
-O `--exclude` tem prioridade sobre o `--include`.
+`--exclude` takes precedence over `--include`.
 
-Passar `--exclude` com palavras próprias substitui o padrão. Para continuar ignorando os objetos de sistema, repita-os na lista.
+Passing your own words to `--exclude` replaces the default. To keep skipping system objects, list them again.
 
-## Exemplos
+## Examples
 
-Gerar o JSON com tudo, exceto os objetos de sistema:
+Write the JSON with everything except system objects:
 
 ```bash
 uv run src/main.py --json
 ```
 
-Gerar os sources do dbt:
+Write the dbt sources:
 
 ```bash
 uv run src/main.py --sources
 ```
 
-Gerar os dois:
+Write both:
 
 ```bash
 uv run src/main.py --json --sources
 ```
 
-Coletar só o que tiver `sap` ou `xpto` no nome:
+Collect only what has `sap` or `xpto` in its name:
 
 ```bash
 uv run src/main.py --sources --include sap xpto
 ```
 
-Ignorar também o que for de dev, mantendo o padrão:
+Also skip anything dev, keeping the default:
 
 ```bash
 uv run src/main.py --sources --exclude system information_schema __databricks_internal dev
 ```
 
-Combinar os dois filtros (tudo de `sap`, menos o que for `dev` ou `tmp`):
+Combine both filters (everything `sap`, except `dev` or `tmp`):
 
 ```bash
 uv run src/main.py --sources --include sap --exclude system information_schema __databricks_internal dev tmp
 ```
 
-Coletar tudo, inclusive os objetos de sistema:
+Collect everything, system objects included:
 
 ```bash
 uv run src/main.py --json --exclude
 ```
 
-## Saída
+## Output
 
 ```
 output/
@@ -108,7 +110,7 @@ output/
     └── sap_raw.yml
 ```
 
-Exemplo de `output/yml/main_sales.yml`:
+Example `output/yml/main_sales.yml`:
 
 ```yaml
 version: 2
@@ -116,25 +118,25 @@ sources:
 - name: main_sales
   database: main
   schema: sales
-  description: Vendas
+  description: Sales
   tables:
   - name: orders
-    description: Pedidos
+    description: Orders
     columns:
     - name: id
       data_type: bigint
       description: PK
       data_tests:
       - not_null
-    - name: obs
+    - name: notes
       data_type: string
 ```
 
-No dbt, a tabela fica disponível como `{{ source('main_sales', 'orders') }}`.
+In dbt, the table is then available as `{{ source('main_sales', 'orders') }}`.
 
-O nome do source junta catalog e schema porque o mesmo schema (por exemplo, `default`) pode existir em mais de um catalog.
+The source name combines catalog and schema because the same schema (e.g. `default`) can exist in more than one catalog.
 
-## Observações
+## Notes
 
-- Com `--include`, o script ainda lista os schemas e tabelas de todos os catalogs que não foram excluídos, porque precisa disso para encontrar tabelas que deem match. Em workspaces grandes, o `--exclude` é o que diminui as chamadas à API.
-- Cada execução sobrescreve os arquivos em `output/`, mas não apaga os que não foram gerados de novo. Se um schema sair do filtro, o `.yml` antigo dele continua na pasta.
+- With `--include`, the script still lists schemas and tables for every catalog that isn't excluded, since it has to look for matching tables. On large workspaces, `--exclude` is what actually cuts down API calls.
+- Each run overwrites files in `output/` but doesn't delete files that weren't regenerated. If a schema drops out of the filter, its old `.yml` stays in the folder.
